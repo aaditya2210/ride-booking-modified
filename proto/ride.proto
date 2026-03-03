@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package ride;
+
+service RideService {
+  rpc GetRide (GetRideRequest) returns (RideResponse);
+  rpc ValidateRide (ValidateRideRequest) returns (ValidateRideResponse);
+  rpc UpdateRideStatus (UpdateRideStatusRequest) returns (UpdateRideStatusResponse);
+}
+
+service DriverService {
+  rpc GetAvailableDrivers (GetAvailableDriversRequest) returns (GetAvailableDriversResponse);
+  rpc AssignDriver (AssignDriverRequest) returns (AssignDriverResponse);
+  rpc ReleaseDriver (ReleaseDriverRequest) returns (ReleaseDriverResponse);
+}
+
+service PricingService {
+  rpc CalculatePrice (PriceRequest) returns (PriceResponse);
+}
+
+message GetRideRequest {
+  string ride_id = 1;
+}
+
+// Keep old name for backward compat
+message RideRequest {
+  string ride_id = 1;
+}
+
+message RideResponse {
+  string ride_id = 1;
+  int32 rider_id = 2;
+  string driver_id = 3;
+  string status = 4;
+  double price = 5;
+  string created_at = 6;
+}
+
+message ValidateRideRequest {
+  string ride_id = 1;
+  int32 user_id = 2;
+  double amount = 3;
+}
+
+message ValidateRideResponse {
+  bool valid = 1;
+  string message = 2;
+  string ride_id = 3;
+  double price = 4;
+}
+
+message UpdateRideStatusRequest {
+  string ride_id = 1;
+  string status = 2;
+}
+
+message UpdateRideStatusResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetAvailableDriversRequest {
+  int32 limit = 1;
+}
+
+message GetAvailableDriversResponse {
+  repeated Driver drivers = 1;
+}
+
+message Driver {
+  string driver_id = 1;
+  string name = 2;
+  string vehicle = 3;
+  double rating = 4;
+  bool available = 5;
+}
+
+message AssignDriverRequest {
+  string ride_id = 1;
+  string driver_id = 2;
+}
+
+message AssignDriverResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReleaseDriverRequest {
+  string driver_id = 1;
+  string ride_id = 2;
+}
+
+message ReleaseDriverResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PriceRequest {
+  string pickup = 1;
+  string dropoff = 2;
+  string ride_type = 3;
+}
+
+message PriceResponse {
+  double base_price = 1;
+  double surge_multiplier = 2;
+  double total_price = 3;
+  string currency = 4;
+}
