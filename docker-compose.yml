@@ -25,6 +25,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: userdb
+    ports:
+      - "3307:3306"   # TablePlus → localhost:3307
     volumes:
       - user-db-data:/var/lib/mysql
     networks:
@@ -42,6 +44,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: paymentdb
+    ports:
+      - "3308:3306"   # TablePlus → localhost:3308
     volumes:
       - payment-db-data:/var/lib/mysql
     networks:
@@ -56,6 +60,8 @@ services:
     image: mongo:7.0
     container_name: driver-db
     restart: unless-stopped
+    ports:
+      - "27017:27017"   # TablePlus → localhost:27017
     volumes:
       - driver-db-data:/data/db
     networks:
@@ -70,6 +76,8 @@ services:
     image: mongo:7.0
     container_name: notification-db
     restart: unless-stopped
+    ports:
+      - "27018:27017"   # TablePlus → localhost:27018
     volumes:
       - notification-db-data:/data/db
     networks:
@@ -84,6 +92,8 @@ services:
     image: redis:7.2-alpine
     container_name: ride-redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"   # TablePlus → localhost:6379
     volumes:
       - ride-redis-data:/data
     networks:
@@ -98,6 +108,8 @@ services:
     image: redis:7.2-alpine
     container_name: pricing-redis
     restart: unless-stopped
+    ports:
+      - "6380:6379"   # TablePlus → localhost:6380
     volumes:
       - pricing-redis-data:/data
     networks:
@@ -107,6 +119,78 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # =====================
+  # DATABASE GUI TOOLS
+  # =====================
+
+  # phpMyAdmin — View BOTH MySQL databases (user-db + payment-db)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "9001:80"
+    environment:
+      PMA_HOSTS: user-db,payment-db          # connects to both MySQL DBs
+      PMA_USER: root
+      PMA_PASSWORD: password
+      UPLOAD_LIMIT: 100M
+    depends_on:
+      user-db:
+        condition: service_healthy
+      payment-db:
+        condition: service_healthy
+    networks:
+      - ridebook-network
+
+  # Mongo Express — View driver-db (MongoDB)
+  mongo-express-driver:
+    image: mongo-express:latest
+    container_name: mongo-express-driver
+    restart: unless-stopped
+    ports:
+      - "9002:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: driver-db
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    depends_on:
+      driver-db:
+        condition: service_healthy
+    networks:
+      - ridebook-network
+
+  # Mongo Express — View notification-db (MongoDB)
+  mongo-express-notification:
+    image: mongo-express:latest
+    container_name: mongo-express-notification
+    restart: unless-stopped
+    ports:
+      - "9003:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: notification-db
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    depends_on:
+      notification-db:
+        condition: service_healthy
+    networks:
+      - ridebook-network
+
+  # RedisInsight — View BOTH Redis instances
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    restart: unless-stopped
+    ports:
+      - "9004:5540"
+    networks:
+      - ridebook-network
 
   # =====================
   # MICROSERVICES
@@ -149,7 +233,6 @@ services:
         condition: service_healthy
     networks:
       - ridebook-network
-    # gRPC port 50052 is internal only
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 15s
@@ -171,7 +254,6 @@ services:
         condition: service_healthy
     networks:
       - ridebook-network
-    # gRPC port 50053 is internal only
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
       interval: 15s
@@ -199,7 +281,6 @@ services:
         condition: service_started
     networks:
       - ridebook-network
-    # gRPC port 50051 is internal only
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 15s
