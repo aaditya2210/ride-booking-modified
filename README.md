@@ -928,15 +928,8 @@ RideBook successfully demonstrates the design and implementation of a microservi
 
 The project is valuable not only as a working software system but also as an academic study of modern backend architecture. It provides a concrete example of how distributed services can be coordinated to solve a real application problem while maintaining modularity, observability, and fault tolerance.
 
-In summary, RideBook fulfills the goals of a major project by combining design, implementation, experimentation, and deployment into a single comprehensive system.
-
 ---
 
-## Suggested Formal Project Description
-
-If you need one short formal paragraph for synopsis, record submission, or viva introduction, you can use:
-
-> "RideBook is a microservices-based distributed ride-booking system developed as an MCA major project. The system consists of independently deployable services for user management, driver management, ride matching, pricing, payment, and notification delivery. It uses FastAPI and Python for backend services, React for the frontend, gRPC for internal service communication, MySQL, MongoDB, and Redis for persistence, and Docker Compose for deployment. The project further integrates Prometheus, Grafana, and circuit breaker mechanisms to demonstrate observability and resilience in distributed systems."
 
 ---
 
