@@ -926,10 +926,3 @@ RideBook successfully demonstrates the design and implementation of a microservi
 The project is valuable not only as a working software system but also as an academic study of modern backend architecture. It provides a concrete example of how distributed services can be coordinated to solve a real application problem while maintaining modularity, observability, and fault tolerance.
 
 ---
-
-
----
-
-## License
-
-Add the appropriate license before publishing the repository externally.
