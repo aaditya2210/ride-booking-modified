@@ -6,6 +6,7 @@ COPY pricing-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY pricing-service/ .
+COPY shared/ /app/shared/
 COPY proto/ /app/proto/
 RUN python -m grpc_tools.protoc -I/app/proto --python_out=/app/proto --grpc_python_out=/app/proto /app/proto/ride.proto
 

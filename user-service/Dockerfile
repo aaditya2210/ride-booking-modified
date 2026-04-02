@@ -6,6 +6,7 @@ COPY user-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY user-service/ .
+COPY shared/ /app/shared/
 
 EXPOSE 8001
 

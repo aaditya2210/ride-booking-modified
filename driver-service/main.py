@@ -10,11 +10,13 @@ import grpc
 from concurrent import futures
 import sys
 sys.path.append('/app/proto')
+from shared.observability import configure_observability
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Driver Service", version="1.0.0")
+configure_observability(app, "driver-service")
 
 app.add_middleware(
     CORSMiddleware,

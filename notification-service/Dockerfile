@@ -6,6 +6,7 @@ COPY notification-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY notification-service/ .
+COPY shared/ /app/shared/
 
 EXPOSE 8005
 

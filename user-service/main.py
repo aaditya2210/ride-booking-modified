@@ -5,11 +5,13 @@ import mysql.connector
 import os
 import time
 import logging
+from shared.observability import configure_observability
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="User Service", version="1.0.0")
+configure_observability(app, "user-service")
 
 app.add_middleware(
     CORSMiddleware,

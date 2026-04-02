@@ -9,12 +9,17 @@ import time
 import logging
 import grpc
 import sys
+
+from shared.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
+from shared.observability import configure_observability
+
 sys.path.append('/app/proto')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Ride Matching Service", version="1.0.0")
+configure_observability(app, "ride-matching-service")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +32,19 @@ REDIS_HOST = os.getenv("REDIS_HOST", "ride-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 DRIVER_SERVICE_GRPC = os.getenv("DRIVER_SERVICE_GRPC", "driver-service:50052")
 PRICING_SERVICE_GRPC = os.getenv("PRICING_SERVICE_GRPC", "pricing-service:50053")
+
+driver_breaker = CircuitBreaker(
+    name="driver-service-grpc",
+    service_name="ride-matching-service",
+)
+pricing_breaker = CircuitBreaker(
+    name="pricing-service-grpc",
+    service_name="ride-matching-service",
+)
+ride_matching_breakers = {
+    "driver-service-grpc": driver_breaker,
+    "pricing-service-grpc": pricing_breaker,
+}
 
 
 def get_redis():
@@ -61,6 +79,14 @@ def health():
     return {"status": "healthy", "service": "ride-matching-service"}
 
 
+@app.get("/circuit-breakers")
+def get_circuit_breakers():
+    return {
+        "service": "ride-matching-service",
+        "breakers": [breaker.snapshot() for breaker in ride_matching_breakers.values()],
+    }
+
+
 @app.post("/ride/request")
 def request_ride(request: RideRequest):
     import ride_pb2
@@ -69,65 +95,72 @@ def request_ride(request: RideRequest):
     r = get_redis()
     ride_id = f"ride-{str(uuid.uuid4())[:8]}"
 
-    # ── VALIDATION 1: Check for available drivers via gRPC ──
     driver_id = None
     driver_name = None
 
     try:
         channel = get_driver_channel()
         stub = ride_pb2_grpc.DriverServiceStub(channel)
-        response = stub.GetAvailableDrivers(
+        response = driver_breaker.call(
+            stub.GetAvailableDrivers,
             ride_pb2.GetAvailableDriversRequest(limit=1),
-            timeout=3
+            timeout=3,
         )
 
-        # ── VALIDATION 2: No available drivers → reject ──
         if not response.drivers:
             raise HTTPException(
                 status_code=503,
-                detail="No drivers available at the moment. Please try again shortly."
+                detail="No drivers available at the moment. Please try again shortly.",
             )
 
         driver = response.drivers[0]
         driver_id = driver.driver_id
         driver_name = driver.name
 
-        # Mark driver as busy
-        assign_response = stub.AssignDriver(
+        assign_response = driver_breaker.call(
+            stub.AssignDriver,
             ride_pb2.AssignDriverRequest(ride_id=ride_id, driver_id=driver_id),
-            timeout=3
+            timeout=3,
         )
         if not assign_response.success:
             raise HTTPException(
                 status_code=503,
-                detail="Driver became unavailable. Please try again."
+                detail="Driver became unavailable. Please try again.",
             )
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Driver service gRPC error: {e}")
+    except CircuitBreakerOpenError as exc:
+        logger.warning(f"Driver service circuit breaker open: {exc}")
         raise HTTPException(
             status_code=503,
-            detail="Driver service unavailable. Please try again shortly."
+            detail="Driver service temporarily unavailable. Please try again shortly.",
+        )
+    except Exception as exc:
+        logger.error(f"Driver service gRPC error: {exc}")
+        raise HTTPException(
+            status_code=503,
+            detail="Driver service unavailable. Please try again shortly.",
         )
 
-    # Get price via gRPC
     price = 25.0
     try:
         channel = get_pricing_channel()
         stub = ride_pb2_grpc.PricingServiceStub(channel)
-        price_response = stub.CalculatePrice(
+        price_response = pricing_breaker.call(
+            stub.CalculatePrice,
             ride_pb2.PriceRequest(
                 pickup=request.pickup,
                 dropoff=request.dropoff,
-                ride_type=request.ride_type
+                ride_type=request.ride_type,
             ),
-            timeout=3
+            timeout=3,
         )
         price = price_response.total_price
-    except Exception as e:
-        logger.warning(f"Could not reach pricing service via gRPC: {e}")
+    except CircuitBreakerOpenError as exc:
+        logger.warning(f"Pricing service circuit breaker open: {exc}")
+    except Exception as exc:
+        logger.warning(f"Could not reach pricing service via gRPC: {exc}")
 
     ride_data = {
         "ride_id": ride_id,
@@ -151,7 +184,7 @@ def request_ride(request: RideRequest):
         "driver": {"id": driver_id, "name": driver_name},
         "price": price,
         "estimated_arrival": "5 minutes",
-        "message": "Ride matched successfully"
+        "message": "Ride matched successfully",
     }
 
 
@@ -191,7 +224,7 @@ def list_rides():
 
 @app.get("/ride/{ride_id}/validate")
 def validate_ride(ride_id: str, user_id: int = 0, amount: float = 0):
-    """Internal endpoint for payment validation"""
+    """Internal endpoint for payment validation."""
     r = get_redis()
     data = r.get(f"ride:{ride_id}")
     if not data:

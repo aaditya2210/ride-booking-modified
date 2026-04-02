@@ -4,3 +4,4 @@ redis==5.0.1
 pydantic==2.4.2
 grpcio==1.59.3
 grpcio-tools==1.59.3
+prometheus-client==0.21.1

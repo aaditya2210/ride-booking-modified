@@ -9,11 +9,16 @@ import logging
 import json
 import asyncio
 from typing import List, Dict
+from shared.observability import (
+    configure_observability,
+    set_notification_websocket_connections,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Notification Service", version="1.0.0")
+configure_observability(app, "notification-service")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,12 +42,15 @@ class ConnectionManager:
         self.user_connections: Dict[str, List[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, user_id: str = None):
-        await websocket.accept()
-        self.active_connections.append(websocket)
+        if websocket not in self.active_connections:
+            await websocket.accept()
+            self.active_connections.append(websocket)
         if user_id:
             if user_id not in self.user_connections:
                 self.user_connections[user_id] = []
-            self.user_connections[user_id].append(websocket)
+            if websocket not in self.user_connections[user_id]:
+                self.user_connections[user_id].append(websocket)
+        set_notification_websocket_connections("notification-service", len(self.active_connections))
         logger.info(f"WebSocket connected. Total connections: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket, user_id: str = None):
@@ -51,6 +59,9 @@ class ConnectionManager:
         if user_id and user_id in self.user_connections:
             if websocket in self.user_connections[user_id]:
                 self.user_connections[user_id].remove(websocket)
+            if not self.user_connections[user_id]:
+                del self.user_connections[user_id]
+        set_notification_websocket_connections("notification-service", len(self.active_connections))
         logger.info(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
 
     async def broadcast(self, message: dict):
@@ -63,6 +74,8 @@ class ConnectionManager:
         for conn in disconnected:
             if conn in self.active_connections:
                 self.active_connections.remove(conn)
+        if disconnected:
+            set_notification_websocket_connections("notification-service", len(self.active_connections))
 
     async def send_to_user(self, user_id: str, message: dict):
         if user_id in self.user_connections:
@@ -74,6 +87,9 @@ class ConnectionManager:
                     disconnected.append(connection)
             for conn in disconnected:
                 self.user_connections[user_id].remove(conn)
+            if not self.user_connections[user_id]:
+                del self.user_connections[user_id]
+            set_notification_websocket_connections("notification-service", len(self.active_connections))
 
 
 manager = ConnectionManager()
@@ -90,6 +106,7 @@ class NotificationCreate(BaseModel):
 @app.on_event("startup")
 async def startup():
     time.sleep(5)
+    set_notification_websocket_connections("notification-service", 0)
     logger.info("Notification service started successfully")
 
 

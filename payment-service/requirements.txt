@@ -6,3 +6,4 @@ grpcio==1.59.3
 grpcio-tools==1.59.3
 requests==2.31.0
 httpx==0.25.2
+prometheus-client==0.21.1

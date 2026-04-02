@@ -7,11 +7,13 @@ import os
 import time
 import logging
 import random
+from shared.observability import configure_observability
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Pricing Service", version="1.0.0")
+configure_observability(app, "pricing-service")
 
 app.add_middleware(
     CORSMiddleware,
