@@ -11,7 +11,6 @@
 
 **RideBook: A Microservices-Based Distributed Ride Booking System**
 
-**Prepared in an MCA major project documentation style**
 
 </div>
 
@@ -722,7 +721,7 @@ This methodology aligns well with MCA major project expectations because it comb
 ### Clone the Repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/aaditya2210/ride-booking-modified
 cd ride-booking-modified
 ```
 
@@ -839,7 +838,7 @@ ride-booking-modified/
 
 ## 21. Experimental Demonstration of Circuit Breaker
 
-To demonstrate system resilience in a viva or major-project presentation, the following procedure can be used:
+To demonstrate system resilience the following procedure can be used:
 
 ### Step 1. Stop the Driver Service
 
@@ -901,8 +900,6 @@ Although the project demonstrates key distributed system principles, it has the 
 - simplified pricing logic
 - no real GPS or maps integration
 - service recovery still depends on local Docker startup behavior
-
-These limitations do not reduce the academic value of the project, but they indicate areas for future extension.
 
 ---
 
