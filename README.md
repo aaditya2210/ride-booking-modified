@@ -8,38 +8,33 @@
 ![Infra](https://img.shields.io/badge/infra-Docker%20Compose-1d4ed8?style=for-the-badge&logo=docker&logoColor=white)
 ![Observability](https://img.shields.io/badge/observability-Prometheus%20%2B%20Grafana-f97316?style=for-the-badge)
 
-**RideBook: A Microservices-Based Distributed Ride Booking System**
-
-**Prepared in an MCA major project documentation style**
+A distributed ride-booking platform that demonstrates a practical microservices architecture with REST, gRPC, WebSockets, polyglot persistence, circuit breakers, and end-to-end observability.
 
 </div>
 
 ## Overview
 
-RideBook models the core workflow of a cab booking system:
+RideBook models the core workflow of a cab booking platform:
 
-- users can be created and managed
-- drivers are stored independently and exposed through REST and gRPC
-- rides are matched through a dedicated orchestration service
-- fares are calculated by a pricing service
-- payments are validated and finalized through a separate payment service
-- notifications are persisted in MongoDB and pushed over WebSockets
+- user onboarding and management
+- driver onboarding and availability tracking
+- ride request and driver assignment
+- fare estimation
+- payment processing
+- notification persistence and real-time delivery
 
-The repository is structured as a multi-service system behind an NGINX gateway. The frontend talks only to the gateway, while internal service-to-service communication uses gRPC and HTTP where appropriate.
+The frontend is exposed through an NGINX gateway, while backend services communicate through a mix of REST, gRPC, and WebSockets depending on the use case.
 
 ## Highlights
 
-- Microservices split by business capability: user, driver, ride matching, pricing, payment, notification
-- API gateway with centralized routing through NGINX
-- REST for north-south traffic and gRPC for internal synchronous calls
-- Polyglot persistence:
-  - MySQL for users and payments
-  - MongoDB for drivers and notifications
-  - Redis for ride state and pricing cache
-- Real-time notification delivery using WebSockets
-- Prometheus metrics on every service and a pre-provisioned Grafana dashboard
-- Circuit breaker protection in ride matching and payment service integrations
-- Full local environment with Docker Compose and service GUI tools
+- Microservices split by business capability
+- FastAPI-based backend services in Python
+- React frontend dashboard
+- gRPC for internal service communication
+- MySQL, MongoDB, and Redis used according to data access patterns
+- Prometheus metrics and Grafana dashboards included
+- Circuit breaker protection for critical downstream calls
+- Full local environment with Docker Compose
 
 ## Architecture
 
@@ -113,16 +108,16 @@ flowchart LR
 
 ### Service Responsibilities
 
-| Service | Main responsibility | Storage | External interface |
+| Service | Responsibility | Storage | Interfaces |
 | --- | --- | --- | --- |
 | `user-service` | Rider CRUD | MySQL | REST |
-| `driver-service` | Driver CRUD, availability, assignment, release | MongoDB | REST + gRPC |
-| `ride-matching-service` | Create and manage rides, orchestrate match flow | Redis | REST + gRPC |
-| `pricing-service` | Fare and surge calculation, short-lived caching | Redis | REST + gRPC |
-| `payment-service` | Payment processing, ride validation, driver release | MySQL | REST |
-| `notification-service` | Notification persistence and live delivery | MongoDB | REST + WebSocket |
-| `frontend` | Operator/demo UI | none | Browser app |
-| `nginx` | Gateway and reverse proxy | none | HTTP entry point |
+| `driver-service` | Driver CRUD, availability, assignment, release | MongoDB | REST, gRPC |
+| `ride-matching-service` | Ride creation and orchestration | Redis | REST, gRPC |
+| `pricing-service` | Fare and surge calculation | Redis | REST, gRPC |
+| `payment-service` | Payment processing and ride finalization | MySQL | REST |
+| `notification-service` | Notification storage and live delivery | MongoDB | REST, WebSocket |
+| `frontend` | Demo dashboard | None | Browser |
+| `nginx` | Gateway and reverse proxy | None | HTTP |
 
 ## Flow Diagrams
 
@@ -146,7 +141,7 @@ sequenceDiagram
     D-->>R: Assignment confirmed
     R->>P: gRPC CalculatePrice(pickup, dropoff, ride_type)
     P-->>R: Price response
-    R->>RR: Store ride snapshot with TTL
+    R->>RR: Store ride snapshot
     R-->>G: ride_id, driver, price, ETA
     G-->>C: Matched ride response
 ```
@@ -190,7 +185,7 @@ sequenceDiagram
 | Gateway | NGINX |
 | SQL storage | MySQL 8 |
 | Document storage | MongoDB 7 |
-| Cache / ephemeral state | Redis 7 |
+| Cache / transient state | Redis 7 |
 | Monitoring | Prometheus, Grafana |
 | Local orchestration | Docker Compose |
 
@@ -219,20 +214,13 @@ sequenceDiagram
 - Docker
 - Docker Compose
 
-### Run the Full System
-
-```bash
-git clone <your-repository-url>
-cd ride-booking-modified
-```
-
-### Build and Start the Project
+### Start the Stack
 
 ```bash
 docker compose up -d --build
 ```
 
-Once the stack is healthy, open:
+### Access Points
 
 | Component | URL |
 | --- | --- |
@@ -244,76 +232,31 @@ Once the stack is healthy, open:
 | Mongo Express `notification-db` | `http://localhost:9003` |
 | RedisInsight | `http://localhost:9004` |
 
----
+### Default Credentials
 
-## 20. Project Directory Structure
+| Tool | Username | Password |
+| --- | --- | --- |
+| Grafana | `admin` | `admin` |
+| Mongo Express | `admin` | `admin123` |
+| phpMyAdmin | `root` | `password` |
 
-```text
-ride-booking-modified/
-|-- docker-compose.yml
-|-- README.md
-|-- proto/
-|   `-- ride.proto
-|-- nginx/
-|   `-- nginx.conf
-|-- frontend/
-|   |-- Dockerfile
-|   |-- package.json
-|   |-- public/
-|   `-- src/
-|-- user-service/
-|   |-- Dockerfile
-|   |-- main.py
-|   `-- requirements.txt
-|-- driver-service/
-|   |-- Dockerfile
-|   |-- main.py
-|   |-- grpc_server.py
-|   |-- start.sh
-|   `-- requirements.txt
-|-- ride-matching-service/
-|   |-- Dockerfile
-|   |-- main.py
-|   |-- grpc_server.py
-|   `-- requirements.txt
-|-- payment-service/
-|   |-- Dockerfile
-|   |-- main.py
-|   `-- requirements.txt
-|-- notification-service/
-|   |-- Dockerfile
-|   |-- main.py
-|   `-- requirements.txt
-|-- pricing-service/
-|   |-- Dockerfile
-|   |-- main.py
-|   |-- grpc_server.py
-|   `-- requirements.txt
-|-- monitoring/
-|   |-- prometheus/
-|   |   `-- prometheus.yml
-|   `-- grafana/
-|       `-- provisioning/
-|           |-- dashboards/
-|           `-- datasources/
-`-- shared/
-    |-- circuit_breaker.py
-    `-- observability.py
-```
+## API Surface
 
----
+The gateway exposes these main route groups:
 
-## 21. Experimental Demonstration of Circuit Breaker
+| Capability | Route prefix |
+| --- | --- |
+| Users | `/users` |
+| Drivers | `/drivers` |
+| Ride management | `/ride`, `/rides` |
+| Pricing | `/pricing` |
+| Payments | `/payments` |
+| Notifications | `/notifications`, `/notify`, `/ws` |
+| Health checks | `/health`, `/health/users`, `/health/drivers`, `/health/rides`, `/health/payments`, `/health/notifications`, `/health/pricing` |
 
-To demonstrate system resilience in a viva or major-project presentation, the following procedure can be used:
+### Example Requests
 
-### Step 1. Stop the Driver Service
-
-```bash
-docker compose stop driver-service
-```
-
-### Step 2. Send Repeated Ride Requests
+Create a ride:
 
 ```bash
 curl -X POST http://localhost:8080/ride/request \
@@ -329,7 +272,7 @@ curl -X POST http://localhost:8080/payments \
   -d "{\"rideId\":\"ride-12345678\",\"userId\":1,\"amount\":25.0,\"payment_method\":\"card\"}"
 ```
 
-Open a WebSocket connection:
+WebSocket endpoints:
 
 ```text
 ws://localhost:8080/ws
@@ -338,7 +281,7 @@ ws://localhost:8080/ws/1
 
 ## Internal Contracts
 
-The protocol buffer definition in `proto/ride.proto` defines three gRPC services:
+The protocol buffer definition in `proto/ride.proto` defines:
 
 - `RideService`
   - `GetRide`
@@ -357,52 +300,35 @@ The protocol buffer definition in `proto/ride.proto` defines three gRPC services
 
 Each FastAPI service exposes Prometheus metrics at `/metrics`, including:
 
-- no authentication and authorization module
-- no secure HTTPS/TLS configuration
-- no cloud deployment configuration
-- no asynchronous message queue integration
-- simplified pricing logic
-- no real GPS or maps integration
-- service recovery still depends on local Docker startup behavior
+- HTTP request count and latency
+- in-flight request gauges
+- circuit breaker state and transition metrics
+- notification WebSocket connection count
 
-These limitations do not reduce the academic value of the project, but they indicate areas for future extension.
+### Circuit Breakers
 
----
+Circuit breakers are implemented in shared code and protect downstream calls in:
 
-## 24. Future Scope
+- `ride-matching-service`
+  - driver lookup and assignment dependency
+  - pricing dependency
+- `payment-service`
+  - ride validation, lookup, and update
+  - driver release
+  - notification delivery
 
-The system can be extended further in the following ways:
+Operational breaker snapshots are exposed by:
 
-- integration of JWT-based authentication and role management
-- use of Kafka or RabbitMQ for event-driven workflows
-- cloud-native deployment on Kubernetes
-- distributed tracing using OpenTelemetry and Jaeger
-- integration with real maps and route optimization services
-- payment gateway integration for real transactions
-- advanced surge pricing and demand prediction
-- driver location tracking and trip analytics
-- service mesh integration for more advanced traffic control
+- `/circuit-breakers` on `ride-matching-service`
+- `/circuit-breakers` on `payment-service`
 
----
+## Development Notes
 
-## 25. Conclusion
-
-RideBook successfully demonstrates the design and implementation of a microservices-based distributed ride-booking platform. The project covers multiple important concepts relevant to an MCA major project, including service decomposition, inter-service communication, database heterogeneity, API gateway routing, monitoring, and resilience engineering.
-
-The project is valuable not only as a working software system but also as an academic study of modern backend architecture. It provides a concrete example of how distributed services can be coordinated to solve a real application problem while maintaining modularity, observability, and fault tolerance.
-
-In summary, RideBook fulfills the goals of a major project by combining design, implementation, experimentation, and deployment into a single comprehensive system.
-
----
-
-## Suggested Formal Project Description
-
-If you need one short formal paragraph for synopsis, record submission, or viva introduction, you can use:
-
-> "RideBook is a microservices-based distributed ride-booking system developed as an MCA major project. The system consists of independently deployable services for user management, driver management, ride matching, pricing, payment, and notification delivery. It uses FastAPI and Python for backend services, React for the frontend, gRPC for internal service communication, MySQL, MongoDB, and Redis for persistence, and Docker Compose for deployment. The project further integrates Prometheus, Grafana, and circuit breaker mechanisms to demonstrate observability and resilience in distributed systems."
-
----
+- Services bootstrap their own schema or seed data on startup.
+- Ride data is stored in Redis with a one-hour TTL.
+- Pricing responses are cached briefly in Redis.
+- The current system is optimized for local demonstration and academic study rather than production deployment.
 
 ## License
 
-Add the appropriate license before publishing the repository externally.
+This repository does not currently include a license file. Add one before publishing or redistributing the project externally.
